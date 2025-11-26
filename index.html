@@ -1185,14 +1185,25 @@
             }
 
             .match-teams {
-                grid-template-columns: 1fr;
+                display: flex;
+                flex-direction: column;
                 gap: 15px;
             }
 
+            .match-team:first-child {
+                order: 1;
+            }
+
             .match-vs {
-                order: -1;
+                order: 2;
                 padding: 10px 0;
-                font-size: 1em;
+                font-size: 1.1em;
+                margin: 5px 0;
+                font-weight: 700;
+            }
+
+            .match-team:last-child {
+                order: 3;
             }
 
             .match-team {
@@ -1493,10 +1504,25 @@
 
         @media (max-width: 768px) {
             .scroll-to-top-btn {
-                bottom: 20px;
+                bottom: 80px;
                 right: 20px;
-                width: 45px;
-                height: 45px;
+                width: 55px;
+                height: 55px;
+                font-size: 22px;
+                box-shadow: 0 6px 20px rgba(100, 149, 237, 0.6);
+            }
+
+            .scroll-to-top-btn:active {
+                transform: scale(0.9);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .scroll-to-top-btn {
+                bottom: 70px;
+                right: 15px;
+                width: 50px;
+                height: 50px;
                 font-size: 20px;
             }
         }
