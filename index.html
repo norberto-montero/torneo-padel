@@ -1451,6 +1451,55 @@
             overflow-x: hidden;
             width: 100%;
         }
+
+        /* Botón flotante para ir arriba */
+        .scroll-to-top-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6495ed 0%, #4169e1 100%);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(100, 149, 237, 0.4);
+            z-index: 998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: scale(0.8);
+        }
+
+        .scroll-to-top-btn.show {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .scroll-to-top-btn:hover {
+            background: linear-gradient(135deg, #4169e1 0%, #1e90ff 100%);
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(100, 149, 237, 0.6);
+        }
+
+        .scroll-to-top-btn:active {
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            .scroll-to-top-btn {
+                bottom: 20px;
+                right: 20px;
+                width: 45px;
+                height: 45px;
+                font-size: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1601,6 +1650,11 @@
                 <div id="podiumContainer" class="podium-container"></div>
             </div>
         </div>
+
+        <!-- Botón flotante para ir arriba -->
+        <button id="scrollToTopBtn" class="scroll-to-top-btn" onclick="scrollToTop()" title="Ir arriba">
+            ⬆️
+        </button>
     </div>
 
     <script>
@@ -2385,17 +2439,18 @@
             
             // Agregar cada partido en formato "Pareja 1 vs Pareja 2"
             matches.forEach((match, index) => {
-                const pareja1 = `${match.team1[0].name} - ${match.team1[1].name}`;
-                const pareja2 = `${match.team2[0].name} - ${match.team2[1].name}`;
+                const pareja1 = match.team1[0].name + ' - ' + match.team1[1].name;
+                const pareja2 = match.team2[0].name + ' - ' + match.team2[1].name;
                 const score = match.score1 !== null && match.score2 !== null 
-                    ? ` (${match.score1} - ${match.score2})` 
+                    ? ' (' + match.score1 + ' - ' + match.score2 + ')' 
                     : '';
                 
-                tableText += `Partido #${match.id}: ${pareja1} vs ${pareja2}${score}\n`;
+                // Construir la línea completa de forma explícita
+                tableText += 'Partido #' + match.id + ': ' + pareja1 + ' vs ' + pareja2 + score + '\n';
             });
             
             tableText += '\n' + '='.repeat(80) + '\n';
-            tableText += `Total de partidos: ${matches.length}\n`;
+            tableText += 'Total de partidos: ' + matches.length + '\n';
             
             // Función para actualizar el botón
             const updateButton = (button) => {
@@ -2546,6 +2601,26 @@
         document.getElementById('participantName').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 addParticipant();
+            }
+        });
+
+        // Función para hacer scroll hacia arriba
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Mostrar/ocultar botón de ir arriba según el scroll
+        window.addEventListener('scroll', function() {
+            const scrollBtn = document.getElementById('scrollToTopBtn');
+            if (scrollBtn) {
+                if (window.pageYOffset > 300) {
+                    scrollBtn.classList.add('show');
+                } else {
+                    scrollBtn.classList.remove('show');
+                }
             }
         });
     </script>
