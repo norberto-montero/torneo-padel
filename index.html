@@ -652,16 +652,18 @@
             gap: 6px;
         }
 
-        .gender-icon-male {
-            font-size: 1.3em;
+        .gender-icon-male,
+        .gender-icon-female {
             display: inline-block;
-            filter: drop-shadow(0 2px 4px rgba(33, 150, 243, 0.5));
+            width: 1em;
+            height: 1.5em;
+            vertical-align: middle;
         }
 
-        .gender-icon-female {
-            font-size: 1.3em;
-            display: inline-block;
-            filter: drop-shadow(0 2px 4px rgba(233, 30, 99, 0.5));
+        .gender-icon-male svg,
+        .gender-icon-female svg {
+            width: 100%;
+            height: 100%;
         }
 
         .btn {
@@ -1680,11 +1682,11 @@
                         </div>
                         <div class="checkbox-group">
                             <input type="checkbox" id="playerIsMale">
-                            <label for="playerIsMale"><span class="gender-icon-male">🏃‍♂️</span> Hombre</label>
+                            <label for="playerIsMale"><span class="gender-icon-male"><svg width="1em" height="1.5em" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="8"/><rect x="40" y="45" width="20" height="40" fill="none" stroke="currentColor" stroke-width="8"/><line x1="50" y1="85" x2="50" y2="130" stroke="currentColor" stroke-width="8" stroke-linecap="round"/></svg></span> Hombre</label>
                         </div>
                         <div class="checkbox-group">
                             <input type="checkbox" id="playerIsFemale">
-                            <label for="playerIsFemale"><span class="gender-icon-female">🏃‍♀️</span> Mujer</label>
+                            <label for="playerIsFemale"><span class="gender-icon-female"><svg width="1em" height="1.5em" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="8"/><path d="M 30 45 L 70 45 L 60 85 L 40 85 Z" fill="none" stroke="currentColor" stroke-width="8"/><line x1="50" y1="85" x2="50" y2="130" stroke="currentColor" stroke-width="8" stroke-linecap="round"/></svg></span> Mujer</label>
                         </div>
                         <button class="btn btn-primary" onclick="addPlayer()">
                             ➕ Agregar Jugador
@@ -1738,6 +1740,23 @@
         let podiumShown = false;
         let playersDB = []; // Base de datos de jugadores
         let playerPresence = {}; // Estado de presencia de jugadores
+
+        // Funciones para generar iconos de género
+        function getMaleIcon(size = '1em') {
+            return `<svg width="${size}" height="${parseFloat(size) * 1.5}em" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="8"/>
+                <rect x="40" y="45" width="20" height="40" fill="none" stroke="currentColor" stroke-width="8"/>
+                <line x1="50" y1="85" x2="50" y2="130" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+            </svg>`;
+        }
+
+        function getFemaleIcon(size = '1em') {
+            return `<svg width="${size}" height="${parseFloat(size) * 1.5}em" viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="8"/>
+                <path d="M 30 45 L 70 45 L 60 85 L 40 85 Z" fill="none" stroke="currentColor" stroke-width="8"/>
+                <line x1="50" y1="85" x2="50" y2="130" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+            </svg>`;
+        }
 
         // Cargar datos del localStorage
         // Cargar datos del localStorage
@@ -1853,10 +1872,10 @@
             }
 
             container.innerHTML = playersDB.map((player, index) => `
-                <div class="participant-card" style="animation-delay: ${index * 0.1}s">
+                <div class="participant-card">
                     <div class="participant-info">
                         <span class="gender-badge gender-${player.gender}">
-                            ${player.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}
+                            <span class="gender-icon-${player.gender}">${player.gender === 'male' ? getMaleIcon('1.2em') : getFemaleIcon('1.2em')}</span>
                         </span>
                         <span style="color: #fff;">${player.name}</span>
                     </div>
@@ -1908,9 +1927,28 @@
         }
 
         // Toggle presencia de jugador
-        function togglePlayerPresence(playerId) {
-            playerPresence[playerId] = !playerPresence[playerId];
-            renderParticipants();
+        function togglePlayerPresence(playerId, isChecked) {
+            playerPresence[playerId] = isChecked;
+            
+            // Actualizar solo el estilo visual del card sin recargar toda la lista
+            const card = document.querySelector(`[data-player-id="${playerId}"]`);
+            if (card) {
+                if (isChecked) {
+                    card.style.borderColor = '#4caf50';
+                    card.style.background = 'rgba(76, 175, 80, 0.1)';
+                } else {
+                    card.style.borderColor = '';
+                    card.style.background = '';
+                }
+            }
+            
+            // Actualizar contador y botón sin recargar toda la lista
+            const presentPlayers = participants.filter(p => playerPresence[p.id] === true);
+            const countElement = document.getElementById('tab-count-participants');
+            if (countElement) {
+                countElement.textContent = `(${presentPlayers.length} presentes / ${participants.length} total)`;
+            }
+            
             updateGenerateMatchesButton();
             saveData();
         }
@@ -1976,20 +2014,15 @@
             container.innerHTML = participants.map((p, index) => {
                 const isPresent = playerPresence[p.id] === true;
                 return `
-                    <div class="participant-card" style="animation-delay: ${index * 0.1}s; ${isPresent ? 'border-color: #4caf50; background: rgba(76, 175, 80, 0.1);' : ''}">
+                    <div class="participant-card" data-player-id="${p.id}" style="${isPresent ? 'border-color: #4caf50; background: rgba(76, 175, 80, 0.1);' : ''}">
                         <div class="participant-info" style="flex: 1; display: flex; align-items: center; gap: 15px;">
-                            <div class="checkbox-group" style="margin-right: 0;">
-                                <input type="checkbox" 
-                                       id="presence_${p.id}" 
-                                       class="presence-checkbox"
-                                       ${isPresent ? 'checked' : ''} 
-                                       onchange="togglePlayerPresence(${p.id})">
-                                <label for="presence_${p.id}" class="presence-label ${isPresent ? 'present' : 'absent'}">
-                                    ${isPresent ? '✓ Presente' : '○ Ausente'}
-                                </label>
-                            </div>
+                            <input type="checkbox" 
+                                   id="presence_${p.id}" 
+                                   class="presence-checkbox"
+                                   ${isPresent ? 'checked' : ''} 
+                                   onchange="togglePlayerPresence(${p.id}, this.checked)">
                             <span class="gender-badge gender-${p.gender}">
-                                ${p.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}
+                                <span class="gender-icon-${p.gender}">${p.gender === 'male' ? getMaleIcon('1.2em') : getFemaleIcon('1.2em')}</span>
                             </span>
                             <span style="color: #fff; font-size: 1.05em; font-weight: 500;">${p.name}</span>
                         </div>
@@ -2307,22 +2340,22 @@
                         <div class="match-team ${winnerTeam === 'team1' ? 'winner-team' : ''}">
                             <div class="match-team-label">Pareja 1</div>
                             <div class="match-player ${winnerTeam === 'team1' ? 'winner' : ''}">
-                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team1[0].gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}</span>
+                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team1[0].gender === 'male' ? getMaleIcon('1.3em') : getFemaleIcon('1.3em')}</span>
                                 <span class="match-player-name">${match.team1[0].name}</span>
                             </div>
                             <div class="match-player ${winnerTeam === 'team1' ? 'winner' : ''}">
-                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team1[1].gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}</span>
+                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team1[1].gender === 'male' ? getMaleIcon('1.3em') : getFemaleIcon('1.3em')}</span>
                                 <span class="match-player-name">${match.team1[1].name}</span>
                             </div>
                         </div>
                         <div class="match-team ${winnerTeam === 'team2' ? 'winner-team' : ''}">
                             <div class="match-team-label">Pareja 2</div>
                             <div class="match-player ${winnerTeam === 'team2' ? 'winner' : ''}">
-                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team2[0].gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}</span>
+                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team2[0].gender === 'male' ? getMaleIcon('1.3em') : getFemaleIcon('1.3em')}</span>
                                 <span class="match-player-name">${match.team2[0].name}</span>
                             </div>
                             <div class="match-player ${winnerTeam === 'team2' ? 'winner' : ''}">
-                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team2[1].gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}</span>
+                                <span class="match-gender-icon" style="font-size: 1.3em;">${match.team2[1].gender === 'male' ? getMaleIcon('1.3em') : getFemaleIcon('1.3em')}</span>
                                 <span class="match-player-name">${match.team2[1].name}</span>
                             </div>
                         </div>
@@ -2546,7 +2579,7 @@
                                 <td data-label="Jugador">${result.name}</td>
                                 <td data-label="Género">
                                     <span class="gender-badge gender-${result.gender}">
-                                        <span style="font-size: 1.2em; margin-right: 5px;">${result.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}</span> ${result.gender === 'male' ? 'Hombre' : 'Mujer'}
+                                        <span class="gender-icon-${result.gender}" style="margin-right: 5px; display: inline-block; vertical-align: middle;">${result.gender === 'male' ? getMaleIcon('1.2em') : getFemaleIcon('1.2em')}</span> ${result.gender === 'male' ? 'Hombre' : 'Mujer'}
                                     </span>
                                 </td>
                                 <td class="points" data-label="Puntos">${result.points}</td>
