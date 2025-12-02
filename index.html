@@ -620,6 +620,27 @@
             accent-color: #cc0000;
         }
 
+        .presence-checkbox {
+            width: 22px !important;
+            height: 22px !important;
+            cursor: pointer;
+            accent-color: #4caf50;
+        }
+
+        .presence-label {
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .presence-label.present {
+            color: #4caf50;
+        }
+
+        .presence-label.absent {
+            color: #999;
+        }
+
         .checkbox-group label {
             cursor: pointer;
             font-weight: 500;
@@ -1546,6 +1567,9 @@
         </div>
 
         <div class="tabs">
+            <button class="tab" onclick="switchTab('players')">
+                Jugadores
+            </button>
             <button class="tab active" onclick="switchTab('participants')">
                 Participantes <span id="tab-count-participants" class="tab-count">(0)</span>
             </button>
@@ -1558,29 +1582,50 @@
         </div>
 
         <div class="content">
-            <!-- Tab: Participantes -->
-            <div id="tab-participants" class="tab-content active">
+            <!-- Tab: Jugadores (ABM) -->
+            <div id="tab-players" class="tab-content">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                    <h2 class="section-title" style="margin: 0;">Participantes</h2>
-                    <button class="btn btn-danger" onclick="resetParticipants()">
-                        🔄 Resetear Participantes
-                    </button>
+                    <h2 class="section-title" style="margin: 0;">Gestión de Jugadores</h2>
                 </div>
                 <div class="participant-form">
                     <div class="form-row">
                         <div class="input-group">
-                            <input type="text" id="participantName" placeholder="Nombre del participante">
+                            <input type="text" id="playerName" placeholder="Nombre del jugador">
                         </div>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="isMale">
-                            <label for="isMale"><span class="gender-icon-male">🏃‍♂️</span> Hombre</label>
+                            <input type="checkbox" id="playerIsMale">
+                            <label for="playerIsMale"><span class="gender-icon-male">🏃‍♂️</span> Hombre</label>
                         </div>
                         <div class="checkbox-group">
-                            <input type="checkbox" id="isFemale">
-                            <label for="isFemale"><span class="gender-icon-female">🏃‍♀️</span> Mujer</label>
+                            <input type="checkbox" id="playerIsFemale">
+                            <label for="playerIsFemale"><span class="gender-icon-female">🏃‍♀️</span> Mujer</label>
                         </div>
-                        <button class="btn btn-primary" onclick="addParticipant()">
-                            ➕ Agregar
+                        <button class="btn btn-primary" onclick="addPlayer()">
+                            ➕ Agregar Jugador
+                        </button>
+                    </div>
+                </div>
+                <div id="playersList" class="participants-list"></div>
+            </div>
+
+            <!-- Tab: Participantes -->
+            <div id="tab-participants" class="tab-content active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                    <h2 class="section-title" style="margin: 0;">Participantes</h2>
+                    <button class="btn btn-primary" onclick="loadAllPlayers()">
+                        🔄 Recargar Jugadores
+                    </button>
+                </div>
+                <div style="background: #1a1a1a; border-radius: 8px; padding: 20px; margin-bottom: 25px; border: 1px solid #333;">
+                    <p style="color: #999; margin-bottom: 15px; font-size: 0.95em;">
+                        💡 <strong>Instrucciones:</strong> Marca con ✓ los jugadores que están presentes hoy. Solo los jugadores marcados participarán en los cruces.
+                    </p>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn btn-secondary" onclick="selectAllPlayers()" style="padding: 8px 16px; font-size: 0.9em;">
+                            ✓ Marcar Todos
+                        </button>
+                        <button class="btn btn-secondary" onclick="deselectAllPlayers()" style="padding: 8px 16px; font-size: 0.9em;">
+                            ✗ Desmarcar Todos
                         </button>
                     </div>
                 </div>
@@ -1690,16 +1735,26 @@
         let matches = [];
         let results = {};
         let podiumShown = false;
+        let playersDB = []; // Base de datos de jugadores
+        let playerPresence = {}; // Estado de presencia de jugadores
 
         // Cargar datos del localStorage
         function loadData() {
+            const savedPlayersDB = localStorage.getItem('padelPlayersDB');
             const savedParticipants = localStorage.getItem('padelParticipants');
             const savedMatches = localStorage.getItem('padelMatches');
             const savedResults = localStorage.getItem('padelResults');
+            const savedPlayerPresence = localStorage.getItem('padelPlayerPresence');
 
+            if (savedPlayersDB) {
+                playersDB = JSON.parse(savedPlayersDB);
+                renderPlayers();
+            }
+            if (savedPlayerPresence) {
+                playerPresence = JSON.parse(savedPlayerPresence);
+            }
             if (savedParticipants) {
                 participants = JSON.parse(savedParticipants);
-                renderParticipants();
             }
             if (savedMatches) {
                 matches = JSON.parse(savedMatches);
@@ -1709,20 +1764,27 @@
                 results = JSON.parse(savedResults);
                 renderResults();
             }
+            
+            // Cargar jugadores en participantes
+            loadAllPlayers();
         }
 
         // Guardar datos en localStorage
         function saveData() {
+            localStorage.setItem('padelPlayersDB', JSON.stringify(playersDB));
             localStorage.setItem('padelParticipants', JSON.stringify(participants));
             localStorage.setItem('padelMatches', JSON.stringify(matches));
             localStorage.setItem('padelResults', JSON.stringify(results));
+            localStorage.setItem('padelPlayerPresence', JSON.stringify(playerPresence));
         }
 
-        // Agregar participante
-        function addParticipant() {
-            const nameInput = document.getElementById('participantName');
-            const isMale = document.getElementById('isMale').checked;
-            const isFemale = document.getElementById('isFemale').checked;
+        // ========== FUNCIONES DE ABM DE JUGADORES ==========
+        
+        // Agregar jugador a la base de datos
+        function addPlayer() {
+            const nameInput = document.getElementById('playerName');
+            const isMale = document.getElementById('playerIsMale').checked;
+            const isFemale = document.getElementById('playerIsFemale').checked;
 
             const name = nameInput.value.trim();
 
@@ -1741,16 +1803,111 @@
                 return;
             }
 
-            participants.push({
+            // Verificar si el jugador ya existe
+            const existingPlayer = playersDB.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existingPlayer) {
+                alert('Este jugador ya existe en la base de datos');
+                return;
+            }
+
+            const newPlayer = {
                 id: Date.now(),
                 name: name,
                 gender: isMale ? 'male' : 'female'
-            });
+            };
+
+            playersDB.push(newPlayer);
+            playerPresence[newPlayer.id] = false; // Por defecto no presente
 
             nameInput.value = '';
-            document.getElementById('isMale').checked = false;
-            document.getElementById('isFemale').checked = false;
+            document.getElementById('playerIsMale').checked = false;
+            document.getElementById('playerIsFemale').checked = false;
 
+            renderPlayers();
+            loadAllPlayers(); // Actualizar la lista de participantes
+            saveData();
+        }
+
+        // Eliminar jugador de la base de datos
+        function removePlayer(id) {
+            if (confirm('¿Estás seguro de que deseas eliminar este jugador de la base de datos?')) {
+                playersDB = playersDB.filter(p => p.id !== id);
+                delete playerPresence[id];
+                renderPlayers();
+                loadAllPlayers(); // Actualizar la lista de participantes
+                saveData();
+            }
+        }
+
+        // Renderizar lista de jugadores en la pestaña ABM
+        function renderPlayers() {
+            const container = document.getElementById('playersList');
+            
+            if (!container) return;
+            
+            if (playersDB.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No hay jugadores en la base de datos. Agrega jugadores para comenzar.</p></div>';
+                return;
+            }
+
+            container.innerHTML = playersDB.map((player, index) => `
+                <div class="participant-card" style="animation-delay: ${index * 0.1}s">
+                    <div class="participant-info">
+                        <span class="gender-badge gender-${player.gender}">
+                            ${player.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}
+                        </span>
+                        <span style="color: #fff;">${player.name}</span>
+                    </div>
+                    <button class="btn btn-danger" onclick="removePlayer(${player.id})" style="padding: 5px 10px; font-size: 0.9em;">
+                        ✕ Eliminar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Cargar todos los jugadores en la pestaña de participantes
+        function loadAllPlayers() {
+            participants = playersDB.map(player => ({
+                id: player.id,
+                name: player.name,
+                gender: player.gender
+            }));
+            
+            // Inicializar presencia si no existe
+            playersDB.forEach(player => {
+                if (playerPresence[player.id] === undefined) {
+                    playerPresence[player.id] = false;
+                }
+            });
+            
+            renderParticipants();
+            updateGenerateMatchesButton();
+            saveData();
+        }
+
+        // Seleccionar todos los jugadores
+        function selectAllPlayers() {
+            playersDB.forEach(player => {
+                playerPresence[player.id] = true;
+            });
+            renderParticipants();
+            updateGenerateMatchesButton();
+            saveData();
+        }
+
+        // Deseleccionar todos los jugadores
+        function deselectAllPlayers() {
+            playersDB.forEach(player => {
+                playerPresence[player.id] = false;
+            });
+            renderParticipants();
+            updateGenerateMatchesButton();
+            saveData();
+        }
+
+        // Toggle presencia de jugador
+        function togglePlayerPresence(playerId) {
+            playerPresence[playerId] = !playerPresence[playerId];
             renderParticipants();
             updateGenerateMatchesButton();
             saveData();
@@ -1764,10 +1921,12 @@
             
             if (!btn) return;
             
-            const males = participants.filter(p => p.gender === 'male');
-            const females = participants.filter(p => p.gender === 'female');
+            // Filtrar solo jugadores presentes
+            const presentParticipants = participants.filter(p => playerPresence[p.id] === true);
+            const males = presentParticipants.filter(p => p.gender === 'male');
+            const females = presentParticipants.filter(p => p.gender === 'female');
             
-            let canGenerate = participants.length >= 4;
+            let canGenerate = presentParticipants.length >= 4;
             
             // Si es modo mixto, necesitamos al menos un hombre y una mujer
             if (mixedMode) {
@@ -1777,15 +1936,15 @@
             btn.disabled = !canGenerate;
             
             if (hint) {
-                if (participants.length < 4) {
-                    hint.textContent = `Se necesitan al menos 4 participantes (actualmente: ${participants.length})`;
+                if (presentParticipants.length < 4) {
+                    hint.textContent = `Se necesitan al menos 4 participantes presentes (actualmente: ${presentParticipants.length} de ${participants.length})`;
                     hint.style.color = '#999';
                 } else if (mixedMode && (males.length === 0 || females.length === 0)) {
-                    hint.textContent = `Modo mixto: Se necesitan al menos un hombre y una mujer (Hombres: ${males.length}, Mujeres: ${females.length})`;
+                    hint.textContent = `Modo mixto: Se necesitan al menos un hombre y una mujer presentes (Hombres: ${males.length}, Mujeres: ${females.length})`;
                     hint.style.color = '#999';
                 } else {
                     const modeText = mixedMode ? 'mixtos' : 'todos contra todos';
-                    hint.textContent = `✓ Listo para generar cruces ${modeText} (${participants.length} participantes: ${males.length} hombres, ${females.length} mujeres)`;
+                    hint.textContent = `✓ Listo para generar cruces ${modeText} (${presentParticipants.length} presentes: ${males.length} hombres, ${females.length} mujeres)`;
                     hint.style.color = '#4caf50';
                 }
             }
@@ -1795,53 +1954,64 @@
         function renderParticipants() {
             const container = document.getElementById('participantsList');
             
-            // Actualizar contador
-            document.getElementById('tab-count-participants').textContent = `(${participants.length})`;
+            if (!container) return;
+            
+            // Filtrar solo jugadores presentes para el contador
+            const presentPlayers = participants.filter(p => playerPresence[p.id] === true);
+            const countElement = document.getElementById('tab-count-participants');
+            if (countElement) {
+                countElement.textContent = `(${presentPlayers.length} presentes / ${participants.length} total)`;
+            }
             
             // Actualizar estado del botón generar cruces
             updateGenerateMatchesButton();
             
             if (participants.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No hay participantes agregados</p></div>';
+                container.innerHTML = '<div class="empty-state"><p>No hay jugadores en la base de datos. Ve a la pestaña "Jugadores" para agregar jugadores.</p></div>';
                 return;
             }
 
-            container.innerHTML = participants.map((p, index) => `
-                <div class="participant-card" style="animation-delay: ${index * 0.1}s">
-                    <div class="participant-info">
-                        <span class="gender-badge gender-${p.gender}">
-                            ${p.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}
-                        </span>
-                        <span style="color: #fff;">${p.name}</span>
+            container.innerHTML = participants.map((p, index) => {
+                const isPresent = playerPresence[p.id] === true;
+                return `
+                    <div class="participant-card" style="animation-delay: ${index * 0.1}s; ${isPresent ? 'border-color: #4caf50; background: rgba(76, 175, 80, 0.1);' : ''}">
+                        <div class="participant-info" style="flex: 1; display: flex; align-items: center; gap: 15px;">
+                            <div class="checkbox-group" style="margin-right: 0;">
+                                <input type="checkbox" 
+                                       id="presence_${p.id}" 
+                                       class="presence-checkbox"
+                                       ${isPresent ? 'checked' : ''} 
+                                       onchange="togglePlayerPresence(${p.id})">
+                                <label for="presence_${p.id}" class="presence-label ${isPresent ? 'present' : 'absent'}">
+                                    ${isPresent ? '✓ Presente' : '○ Ausente'}
+                                </label>
+                            </div>
+                            <span class="gender-badge gender-${p.gender}">
+                                ${p.gender === 'male' ? '🏃‍♂️' : '🏃‍♀️'}
+                            </span>
+                            <span style="color: #fff; font-size: 1.05em; font-weight: 500;">${p.name}</span>
+                        </div>
                     </div>
-                    <button class="btn btn-danger" onclick="removeParticipant(${p.id})" style="padding: 5px 10px; font-size: 0.9em;">
-                        ✕
-                    </button>
-                </div>
-            `).join('');
-        }
-
-        // Eliminar participante
-        function removeParticipant(id) {
-            participants = participants.filter(p => p.id !== id);
-            renderParticipants();
-            updateGenerateMatchesButton();
-            saveData();
+                `;
+            }).join('');
         }
 
         // Generar cruces
         function generateMatches() {
-            if (participants.length < 4) {
-                alert('Se necesitan al menos 4 participantes para generar partidos');
+            // Filtrar solo jugadores presentes
+            const presentParticipants = participants.filter(p => playerPresence[p.id] === true);
+            
+            if (presentParticipants.length < 4) {
+                alert(`Se necesitan al menos 4 participantes presentes para generar partidos (actualmente: ${presentParticipants.length})`);
                 return;
             }
 
             const mixedMode = document.getElementById('mixedMode').checked;
-            const males = participants.filter(p => p.gender === 'male');
-            const females = participants.filter(p => p.gender === 'female');
+            const males = presentParticipants.filter(p => p.gender === 'male');
+            const females = presentParticipants.filter(p => p.gender === 'female');
 
             if (mixedMode && (males.length === 0 || females.length === 0)) {
-                alert('Modo mixto: Se necesitan al menos un hombre y una mujer para formar parejas mixtas');
+                alert('Modo mixto: Se necesitan al menos un hombre y una mujer presentes para formar parejas mixtas');
                 return;
             }
 
@@ -1873,9 +2043,9 @@
                 }
             } else {
                 // Modo todos contra todos: cualquier combinación de 2 jugadores
-                for (let i = 0; i < participants.length; i++) {
-                    for (let j = i + 1; j < participants.length; j++) {
-                        allPossiblePairs.push([participants[i], participants[j]]);
+                for (let i = 0; i < presentParticipants.length; i++) {
+                    for (let j = i + 1; j < presentParticipants.length; j++) {
+                        allPossiblePairs.push([presentParticipants[i], presentParticipants[j]]);
                     }
                 }
             }
@@ -2001,10 +2171,25 @@
             });
             
             // Mostrar el contenido seleccionado
-            document.getElementById(`tab-${tabName}`).classList.add('active');
+            const targetContent = document.getElementById(`tab-${tabName}`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
             
             // Activar el tab correspondiente
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            }
+
+            // Si se cambia a la pestaña de participantes, recargar jugadores
+            if (tabName === 'participants') {
+                loadAllPlayers();
+            }
+            
+            // Si se cambia a la pestaña de jugadores, renderizar lista
+            if (tabName === 'players') {
+                renderPlayers();
+            }
 
             // Si se cambia a la pestaña de partidos, inicializar con pendientes
             if (tabName === 'matches') {
@@ -2518,26 +2703,34 @@
             });
         }
 
-        // Resetear participantes
+        // Resetear participantes (solo presencia, no la base de datos)
         function resetParticipants() {
-            if (confirm('¿Estás seguro de que deseas resetear todos los participantes? Esto también eliminará los partidos y resultados.')) {
+            if (confirm('¿Estás seguro de que deseas resetear la presencia de todos los participantes? Esto también eliminará los partidos y resultados, pero mantendrá la base de datos de jugadores.')) {
+                // Resetear presencia
+                playersDB.forEach(player => {
+                    playerPresence[player.id] = false;
+                });
+                
                 participants = [];
                 matches = [];
                 results = {};
                 podiumShown = false;
                 
-                // Limpiar localStorage
+                // Limpiar localStorage (excepto la base de datos de jugadores)
                 localStorage.removeItem('padelParticipants');
                 localStorage.removeItem('padelMatches');
                 localStorage.removeItem('padelResults');
+                localStorage.removeItem('padelPlayerPresence');
+                
+                // Recargar jugadores
+                loadAllPlayers();
                 
                 // Re-renderizar todo
-                renderParticipants();
                 renderMatches();
                 renderResults();
                 updateGenerateMatchesButton();
                 
-                alert('Participantes reseteados correctamente');
+                alert('Presencia de participantes reseteada correctamente');
             }
         }
 
@@ -2562,18 +2755,24 @@
 
         // Resetear todo (mantener por compatibilidad)
         function resetAll() {
-            if (confirm('¿Estás seguro de que deseas resetear todo? Se eliminarán todos los participantes, partidos y resultados.')) {
+            if (confirm('¿Estás seguro de que deseas resetear todo? Se eliminarán todos los jugadores, participantes, partidos y resultados.')) {
+                playersDB = [];
                 participants = [];
                 matches = [];
                 results = {};
+                playerPresence = {};
+                podiumShown = false;
                 
-                // Limpiar localStorage
+                // Limpiar localStorage completamente
+                localStorage.removeItem('padelPlayersDB');
                 localStorage.removeItem('padelParticipants');
                 localStorage.removeItem('padelMatches');
                 localStorage.removeItem('padelResults');
+                localStorage.removeItem('padelPlayerPresence');
                 
                 // Re-renderizar todo
-                renderParticipants();
+                renderPlayers();
+                loadAllPlayers();
                 renderMatches();
                 renderResults();
                 updateGenerateMatchesButton();
@@ -2626,10 +2825,15 @@
             updateGenerateMatchesButton();
         }, 100);
 
-        // Permitir Enter para agregar participante
-        document.getElementById('participantName').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addParticipant();
+        // Permitir Enter para agregar jugador
+        document.addEventListener('DOMContentLoaded', function() {
+            const playerNameInput = document.getElementById('playerName');
+            if (playerNameInput) {
+                playerNameInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        addPlayer();
+                    }
+                });
             }
         });
 
