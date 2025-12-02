@@ -459,6 +459,7 @@
             color: #b0c4de;
         }
 
+
         .tabs {
             display: flex;
             background: #1a1a1a;
@@ -1567,9 +1568,6 @@
         </div>
 
         <div class="tabs">
-            <button class="tab" onclick="switchTab('players')">
-                Jugadores
-            </button>
             <button class="tab active" onclick="switchTab('participants')">
                 Participantes <span id="tab-count-participants" class="tab-count">(0)</span>
             </button>
@@ -1579,35 +1577,12 @@
             <button class="tab" onclick="switchTab('results')">
                 Clasificación
             </button>
+            <button class="tab" onclick="switchTab('players')">
+                Jugadores
+            </button>
         </div>
 
         <div class="content">
-            <!-- Tab: Jugadores (ABM) -->
-            <div id="tab-players" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-                    <h2 class="section-title" style="margin: 0;">Gestión de Jugadores</h2>
-                </div>
-                <div class="participant-form">
-                    <div class="form-row">
-                        <div class="input-group">
-                            <input type="text" id="playerName" placeholder="Nombre del jugador">
-                        </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="playerIsMale">
-                            <label for="playerIsMale"><span class="gender-icon-male">🏃‍♂️</span> Hombre</label>
-                        </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="playerIsFemale">
-                            <label for="playerIsFemale"><span class="gender-icon-female">🏃‍♀️</span> Mujer</label>
-                        </div>
-                        <button class="btn btn-primary" onclick="addPlayer()">
-                            ➕ Agregar Jugador
-                        </button>
-                    </div>
-                </div>
-                <div id="playersList" class="participants-list"></div>
-            </div>
-
             <!-- Tab: Participantes -->
             <div id="tab-participants" class="tab-content active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
@@ -1692,6 +1667,32 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Tab: Jugadores (ABM) -->
+            <div id="tab-players" class="tab-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+                    <h2 class="section-title" style="margin: 0;">Gestión de Jugadores</h2>
+                </div>
+                <div class="participant-form">
+                    <div class="form-row">
+                        <div class="input-group">
+                            <input type="text" id="playerName" placeholder="Nombre del jugador">
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="playerIsMale">
+                            <label for="playerIsMale"><span class="gender-icon-male">🏃‍♂️</span> Hombre</label>
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="playerIsFemale">
+                            <label for="playerIsFemale"><span class="gender-icon-female">🏃‍♀️</span> Mujer</label>
+                        </div>
+                        <button class="btn btn-primary" onclick="addPlayer()">
+                            ➕ Agregar Jugador
+                        </button>
+                    </div>
+                </div>
+                <div id="playersList" class="participants-list"></div>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -1739,12 +1740,13 @@
         let playerPresence = {}; // Estado de presencia de jugadores
 
         // Cargar datos del localStorage
+        // Cargar datos del localStorage
         function loadData() {
             const savedPlayersDB = localStorage.getItem('padelPlayersDB');
+            const savedPlayerPresence = localStorage.getItem('padelPlayerPresence');
             const savedParticipants = localStorage.getItem('padelParticipants');
             const savedMatches = localStorage.getItem('padelMatches');
             const savedResults = localStorage.getItem('padelResults');
-            const savedPlayerPresence = localStorage.getItem('padelPlayerPresence');
 
             if (savedPlayersDB) {
                 playersDB = JSON.parse(savedPlayersDB);
@@ -1772,10 +1774,10 @@
         // Guardar datos en localStorage
         function saveData() {
             localStorage.setItem('padelPlayersDB', JSON.stringify(playersDB));
+            localStorage.setItem('padelPlayerPresence', JSON.stringify(playerPresence));
             localStorage.setItem('padelParticipants', JSON.stringify(participants));
             localStorage.setItem('padelMatches', JSON.stringify(matches));
             localStorage.setItem('padelResults', JSON.stringify(results));
-            localStorage.setItem('padelPlayerPresence', JSON.stringify(playerPresence));
         }
 
         // ========== FUNCIONES DE ABM DE JUGADORES ==========
